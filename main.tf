@@ -10,15 +10,6 @@ data "archive_file" "lambda_function_zip" {
   output_path = "lambda_function.zip"
 }
 
-resource "aws_lambda_function" "my_lambda_function" {
-  function_name = "my-lambda-function"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "index.handler"
-  runtime       = "nodejs18.x"
-
-  filename = data.archive_file.lambda_function_zip.output_path
-}
-
 resource "aws_iam_role" "lambda_role" {
   name = "lambda-role"
 
@@ -35,6 +26,59 @@ resource "aws_iam_role" "lambda_role" {
     ]
   })
 }
+
+resource "aws_iam_policy" "lambda_policy" {
+  name        = "lambda-policy"
+  description = "IAM policy for Lambda function"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "ec2:DeleteNetworkInterface",
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces"
+        ]
+        Effect   = "Allow",
+        Resource = "*"
+      },
+      {
+        Action   = "sts:AssumeRole",
+        Effect   = "Allow",
+        Resource = aws_iam_role.lambda_role.arn
+      }
+      // Add other policy statements if needed
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
+  policy_arn = aws_iam_policy.lambda_policy.arn
+  role       = aws_iam_role.lambda_role.name
+}
+
+resource "aws_lambda_provisioned_concurrency_config" "my_lambda_concurrency" {
+  function_name                     = aws_lambda_function.my_lambda_function.function_name
+  provisioned_concurrent_executions = 1
+  qualifier                         = aws_lambda_function.my_lambda_function.version # Use the version or alias qualifier here
+}
+
+resource "aws_lambda_function" "my_lambda_function" {
+  function_name = "my-lambda-function"
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "index.handler"
+  runtime       = "nodejs18.x"
+  publish       = true
+  filename      = data.archive_file.lambda_function_zip.output_path
+  # version       = "latest"
+  vpc_config {
+    subnet_ids         = [aws_subnet.all_subnet.id] # Use the same subnet as the EC2 instance
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
+  depends_on = [aws_iam_role_policy_attachment.lambda_policy_attachment]
+}
+
 
 resource "aws_api_gateway_rest_api" "lambda_api" {
   name = "lambda-api"
