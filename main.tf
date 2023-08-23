@@ -6,7 +6,7 @@ provider "aws" {
 
 data "archive_file" "lambda_function_zip" {
   type        = "zip"
-  source_dir  = "./node-js" # Replace with the actual path to your lambda_function.py directory
+  source_dir  = "./request-to-ec2" # Replace with the actual path to your lambda_function.py directory
   output_path = "lambda_function.zip"
 }
 
@@ -47,6 +47,25 @@ resource "aws_iam_policy" "lambda_policy" {
         Action   = "sts:AssumeRole",
         Effect   = "Allow",
         Resource = aws_iam_role.lambda_role.arn
+      },
+      {
+        Action = [
+          "events:PutEvents",
+          "events:PutRule",
+          "events:RemoveTargets",
+          "events:PutTargets"
+        ],
+        Effect   = "Allow",
+        Resource = "*"
+      },
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Effect   = "Allow",
+        Resource = "*"
       }
       // Add other policy statements if needed
     ]
@@ -73,10 +92,19 @@ resource "aws_lambda_function" "my_lambda_function" {
   filename      = data.archive_file.lambda_function_zip.output_path
   # version       = "latest"
   vpc_config {
-    subnet_ids         = [aws_subnet.all_subnet.id] # Use the same subnet as the EC2 instance
+    subnet_ids         = [aws_subnet.public_subnet.id] # Use the same subnet as the EC2 instance
     security_group_ids = [aws_security_group.lambda_sg.id]
   }
-  depends_on = [aws_iam_role_policy_attachment.lambda_policy_attachment]
+
+  environment {
+    variables = {
+      EC2_PRIVATE_IP = aws_instance.ssdt_ec2.private_ip
+    }
+  }
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_policy_attachment,
+    aws_instance.ssdt_ec2
+  ]
 }
 
 

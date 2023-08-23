@@ -36,3 +36,7 @@ crash.log
 
 # ZIP file created by Terraform code
 *.zip
+
+
+# used vagrant for local test
+vagrant/
