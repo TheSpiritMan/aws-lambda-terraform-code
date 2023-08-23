@@ -92,7 +92,7 @@ resource "aws_lambda_function" "my_lambda_function" {
   filename      = data.archive_file.lambda_function_zip.output_path
   # version       = "latest"
   vpc_config {
-    subnet_ids         = [aws_subnet.public_subnet.id] # Use the same subnet as the EC2 instance
+    subnet_ids         = [aws_subnet.private_subnet.id] # Use the same subnet as the EC2 instance
     security_group_ids = [aws_security_group.lambda_sg.id]
   }
 

@@ -6,7 +6,7 @@ resource "aws_key_pair" "ssdt_ec2_ssh_key" {
 resource "aws_instance" "ssdt_ec2" {
   ami                    = "ami-024e6efaf93d85776"
   instance_type          = "t2.micro" # Update to your desired instance type
-  subnet_id              = aws_subnet.public_subnet.id
+  subnet_id              = aws_subnet.private_subnet.id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
 
   key_name                    = aws_key_pair.ssdt_ec2_ssh_key.key_name
